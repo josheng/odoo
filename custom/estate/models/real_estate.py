@@ -1,5 +1,5 @@
 from dataclasses import field
-from odoo import models, fields
+from odoo import api, models, fields
 from datetime import datetime, timedelta
 from dateutil.relativedelta import *
 
@@ -30,3 +30,39 @@ class RealEstate(models.Model):
         required=True,
         copy=False,
         default='new')
+    property_type_id = fields.Many2one("estate.property.type", string="Property Type")
+    property_seller_id = fields.Many2one(
+        "res.users", string="Salesperson", default=lambda self: self.env.user)
+    property_buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False)
+    tag_ids = fields.Many2many("estate.property.tag")
+    offer_ids = fields.One2many(
+        "estate.property.offer", "property_id")
+    total_area = fields.Integer(compute='_compute_total_area', readonly=True)
+    best_price = fields.Float(compute='_compute_best_price', readonly=True)
+
+
+    @api.depends("living_area", "garden_area")
+    def _compute_total_area(self):
+        for area in self:
+            area.total_area = area.living_area + area.garden_area
+
+
+    @api.depends('offer_ids.price')
+    def _compute_best_price(self):
+        for x in self:
+            max_price = 0
+            for y in x.offer_ids:
+                if y.price > max_price:
+                    max_price = y.price
+
+            x.best_price = max_price
+
+
+    @api.onchange('garden')
+    def _onchange_garnde(self):
+        if self.garden:
+            self.garden_area = 10
+            self.garden_orientation = 'north'
+        else:
+            self.garden_area = 0
+            self.garden_orientation = ''
