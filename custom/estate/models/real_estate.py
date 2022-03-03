@@ -2,6 +2,7 @@ from dataclasses import field
 from odoo import api, models, fields
 from datetime import datetime, timedelta
 from dateutil.relativedelta import *
+from odoo.exceptions import UserError, ValidationError
 
 
 class RealEstate(models.Model):
@@ -66,3 +67,20 @@ class RealEstate(models.Model):
         else:
             self.garden_area = 0
             self.garden_orientation = ''
+
+
+    def action_sold(self):
+        for x in self:
+            if x.state == 'cancelled':
+                raise UserError("Cancelled property cannot be sold.")
+            else:
+                x.state = 'sold'
+        return True
+
+    def action_cancelled(self):
+        for x in self:
+            if x.state == 'sold':
+                raise UserError("Sold property cannot be cancelled.")
+            else:
+                x.state = 'cancelled'
+        return True

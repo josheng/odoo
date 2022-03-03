@@ -27,3 +27,10 @@ class RealEstateOffer(models.Model):
         for x in self:
             if x.create_date:
                 x.validity = (x.date_deadline - x.create_date.date()).days
+
+    def action_accept(self):
+        return True
+
+    def action_refuse(self):
+
+        return True
