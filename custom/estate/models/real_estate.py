@@ -3,11 +3,13 @@ from odoo import api, models, fields
 from datetime import datetime, timedelta
 from dateutil.relativedelta import *
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import float_is_zero, float_compare
 
 
 class RealEstate(models.Model):
     _name = "estate.property"
     _description = "Real Estate Demo"
+    _order = "id desc"
 
     name = fields.Char(required=True)
     description = fields.Text()
@@ -27,11 +29,11 @@ class RealEstate(models.Model):
                                               ('north', 'North'),('south', 'South'),('east', 'East'),('west', 'West')])
     active = fields.Boolean(default=True)
     state = fields.Selection(string='State', selection=[
-        ('new', 'New'), ('offer received', 'Offer Recevied'), ('offer accepted', 'Offer Accepted'), ('sold', 'Sold'), ('cancelled', 'Cancelled')],
+        ('new', 'New'), ('offer received', 'Offer Received'), ('offer accepted', 'Offer Accepted'), ('sold', 'Sold'), ('cancelled', 'Cancelled')],
         required=True,
         copy=False,
         default='new')
-    property_type_id = fields.Many2one("estate.property.type", string="Property Type")
+    property_type_id = fields.Many2one("estate.property.type", string="Property Type", options="{'no_create_edit': True}")
     property_seller_id = fields.Many2one(
         "res.users", string="Salesperson", default=lambda self: self.env.user)
     property_buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False)
@@ -41,6 +43,10 @@ class RealEstate(models.Model):
     total_area = fields.Integer(compute='_compute_total_area', readonly=True)
     best_price = fields.Float(compute='_compute_best_price', readonly=True)
 
+    _sql_constraints = [
+        ('check_price', 'CHECK(expected_price >= 0 AND selling_price >= 0)',
+         'The price cannot be negative!'),
+    ]
 
     @api.depends("living_area", "garden_area")
     def _compute_total_area(self):
@@ -84,3 +90,11 @@ class RealEstate(models.Model):
             else:
                 x.state = 'cancelled'
         return True
+
+    @api.constrains('selling_price', 'expected_price')
+    def _check_selling_price(self):
+        for x in self:
+            if x.state == 'offer accepted':
+                if x.selling_price < (x.expected_price * 0.9):
+                    raise ValidationError(
+                        'Selling Price cannot be lower then 90% of Expected price!')
