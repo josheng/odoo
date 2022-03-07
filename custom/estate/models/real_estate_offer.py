@@ -16,6 +16,7 @@ class RealEstateOffer(models.Model):
     property_id = fields.Many2one("estate.property", required=True)
     validity = fields.Integer(default=7)
     date_deadline = fields.Date(compute='_compute_date_deadline', inverse='_inverse_date_deadline')
+    property_type_id = fields.Many2one(related="property_id.property_type_id", store=True)
 
     _sql_constraints = [
         ('check_price', 'CHECK(price >= 0)',
@@ -30,7 +31,7 @@ class RealEstateOffer(models.Model):
             else:
                 x.date_deadline = fields.Date.today() + relativedelta(days=+x.validity)
 
-            x.property_id.state = 'offer received'
+            # x.property_id.state = 'offer received'
 
 
     @api.depends('validity')
@@ -56,3 +57,14 @@ class RealEstateOffer(models.Model):
         for x in self:
             x.status = 'refused'
         return True
+
+    @api.model
+    def create(self, vals):
+        props = self.env['estate.property'].browse(vals["property_id"])
+        for x in props.offer_ids:
+            if vals["price"] < x.price:
+                raise UserError(
+                    "Your offer price cannot be lower then existing offers!")
+        if vals["property_id"]:
+            props.state = "offer received"
+        return super(RealEstateOffer, self).create(vals)

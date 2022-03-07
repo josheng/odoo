@@ -8,3 +8,5 @@ class Users(models.Model):
     _description = "Estate Property User"
 
     name = fields.Char(required=True)
+    property_ids = fields.One2many('estate.property', 'property_seller_id',
+                                   domain="[('state', '=', 'new')]")
